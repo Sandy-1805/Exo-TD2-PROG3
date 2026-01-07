@@ -14,3 +14,15 @@ CREATE TABLE dish (
     name varchar(100) not null,
     type dish_type not null
 );
+
+ALTER TABLE ingredient
+ADD COLUMN required_quantity NYMERIC(10,2);
+UPDATE ingredient 
+SET required_quantity = 
+    CASE name
+        WHEN 'Laitue' THEN 1.00
+        WHEN 'Tomate' THEN 2.00
+        WHEN 'Poulet' THEN 0.50
+        ELSE NULL
+    END
+WHERE name IN ('Laitue', 'Tomate', 'Poulet', 'Chocolat', 'Beurre');

@@ -40,7 +40,7 @@ public class DataRetriever {
             }
             //Récuperer tous les ingredients du plat
             if (dish != null) {
-                String ingredtientSql = "SELECT id, name, price, category " +
+                String ingredtientSql = "SELECT id, name, price, required_quantity, category " +
                                         "FROM ingredient WHERE dish_id = ?";
                 try(PreparedStatement ingStmt = conn.prepareStatement(ingredtientSql)) {
                     ingStmt.setInt(1, id);
@@ -53,6 +53,7 @@ public class DataRetriever {
                                     ingRs.getInt("id"),
                                     ingRs.getString("name"),
                                     ingRs.getDouble("price"),
+                                    ingRs.getObject("required_quantity") != null ? rs.getDouble("required_quantity") : null,
                                     Ingredient.CategoryEnum.valueOf(ingRs.getString("category")),
                                     dish
                             );
@@ -67,6 +68,7 @@ public class DataRetriever {
             }
         }
         return dish;
+
     }
 
     public static void main() {
@@ -449,4 +451,86 @@ public class DataRetriever {
             }
         }
     }
+
+
+
+        public List<Ingredient> findIngredientsByCriteria(String ingredientName, Ingredient.Category category, 
+                                                    String dishName, int page, int size) throws SQLException {
+        if (page < 1) throw new IllegalArgumentException("Page doit être >= 1");
+        if (size <= 0) throw new IllegalArgumentException("Size doit être > 0");
+        
+        int offset = (page - 1) * size;
+        List<Ingredient> ingredients = new ArrayList<>();
+        
+        try (Connection conn = dbConnection.getConnection()) {
+            // Construction dynamique de la requête
+            StringBuilder sqlBuilder = new StringBuilder(
+                "SELECT i.id, i.name, i.price, i.category, " +
+                "d.id as dish_id, d.name as dish_name, d.type as dish_type " +
+                "FROM ingredient i " +
+                "LEFT JOIN dish d ON i.id_dish = d.id " +
+                "WHERE 1=1"
+            );
+            
+            List<Object> parameters = new ArrayList<>();
+            
+            // Ajout des conditions dynamiquement
+            if (ingredientName != null && !ingredientName.trim().isEmpty()) {
+                sqlBuilder.append(" AND LOWER(i.name) LIKE LOWER(?)");
+                parameters.add("%" + ingredientName.trim() + "%");
+            }
+            
+            if (category != null) {
+                sqlBuilder.append(" AND i.category = ?");
+                parameters.add(category.toDatabase());
+            }
+            
+            if (dishName != null && !dishName.trim().isEmpty()) {
+                sqlBuilder.append(" AND LOWER(d.name) LIKE LOWER(?)");
+                parameters.add("%" + dishName.trim() + "%");
+            }
+            
+            // Ajout de l'ordre et de la pagination
+            sqlBuilder.append(" ORDER BY i.id LIMIT ? OFFSET ?");
+            
+            try (PreparedStatement stmt = conn.prepareStatement(sqlBuilder.toString())) {
+                // Set des paramètres dynamiques
+                int paramIndex = 1;
+                for (Object param : parameters) {
+                    stmt.setObject(paramIndex++, param);
+                }
+                
+                // Set des paramètres de pagination
+                stmt.setInt(paramIndex++, size);
+                stmt.setInt(paramIndex, offset);
+                
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        Dish dish = null;
+                        
+                        if (rs.getObject("dish_id") != null) {
+                            dish = new Dish(
+                                rs.getInt("dish_id"),
+                                rs.getString("dish_name"),
+                                Dish.DishType.fromDatabase(rs.getString("dish_type"))
+                            );
+                        }
+                        
+                        Ingredient ingredient = new Ingredient(
+                            rs.getInt("id"),
+                            rs.getString("name"),
+                            rs.getDouble("price"),
+                            Ingredient.Category.fromDatabase(rs.getString("category")),
+                            dish
+                        );
+                        
+                        ingredients.add(ingredient);
+                    }
+                }
+            }
+        }
+        
+        return ingredients;
+    }
+
 }

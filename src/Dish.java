@@ -35,13 +35,17 @@ public class Dish {
     }
 
     // Méthode pour calculer le prix total du plat en fonction des ingrédients
-     public Double getDishPrice() {
-        if (ingredient == null || ingredient.isEmpty()) {
+        public Double getDishCost() {
+        if (ingredients == null || ingredients.isEmpty()) {
             return 0.0;
         }
-        return ingredient.stream()
-                .mapToDouble(Ingredient::getPrice)
-                .sum();
+        double total = 0.0;
+        for (Ingredient ingredient : ingredients) {
+            if (ingredient != null) {
+                total += ingredient.getCostWithQuantity();
+            }
+        }
+        return total;
     }
 
     // Méthode pour ajouter un ingrédient
@@ -54,8 +58,8 @@ public class Dish {
 
     @Override
     public String toString() {
-        return String.format("Dish{id=%d, name='%s', type=%s, price=%.2f, ingredients=%d}",
-                id, name, DishTypeEnum, getDishPrice(), ingredient != null ? ingredient.size() : 0);
+        return String.format("Dish{id=%d, name='%s', type=%s, cost=%.2f, ingredients=%d}",
+                id, name, DishTypeEnum, getDishCost(), ingredient != null ? ingredient.size() : 0);
     }
 }
 
